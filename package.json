@@ -1,0 +1,17 @@
+{
+  "name": "cc-lab-3",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "cli": "npx tsx src/main.ts"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "tsx": "^4.19.3"
+  },
+  "devDependencies": {
+    "@types/node": "22.13.10"
+  }
+}

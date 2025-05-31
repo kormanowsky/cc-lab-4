@@ -1,0 +1,9 @@
+{
+    "compilerOptions": {
+        "esModuleInterop": true,
+        "target": "ES2024",
+        "module": "NodeNext",
+        "moduleResolution": "nodenext",
+        "isolatedModules": true
+    }
+}
