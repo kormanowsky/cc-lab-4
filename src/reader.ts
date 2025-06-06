@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 
 export interface IReader {
-    getNextChar(): Promise<string>;
+    getNextChar(): Promise<string | null>;
 }
 
 export class FileReader implements IReader {
@@ -10,10 +10,10 @@ export class FileReader implements IReader {
         this.initPromise = this.init();
     }
 
-    async getNextChar(): Promise<string> {
+    async getNextChar(): Promise<string | null> {
         await this.initPromise;
         ++this.pos;
-        return this.data[this.pos];
+        return this.pos < this.data.length ? this.data[this.pos] : null;
     }
 
     protected async init(): Promise<void> {
