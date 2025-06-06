@@ -1,0 +1,6 @@
+begin 
+X = 1;
+Y = X + (X >= 1);
+O = true + false + 1;
+G = 5
+end

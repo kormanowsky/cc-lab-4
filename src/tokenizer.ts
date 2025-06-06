@@ -19,59 +19,43 @@ export class Tokenizer implements ITokenizer {
     }
 
     async getNextToken(): Promise<IToken> {
-        let nextChar = await this.reader.getNextChar();
-        let nextCharType = Object.entries(this.charTypeMap).find(([k, v]) => v.test(nextChar))?.[0];
+        if (!this.nextChar) {
+            this.nextChar = await this.reader.getNextChar();
+        }
 
-        if (!nextChar || !nextCharType) {
+        let nextCharType = Object.entries(this.charTypeMap).find(([k, v]) => v.test(this.nextChar))?.[0];
+
+        if (!this.nextChar || !nextCharType) {
             return {type: 'end', content: null};
         }
 
-        let ret: IToken | null = null;
+        const token = {
+            type: <ITokenType>nextCharType,
+            content: ""
+        };
 
-        if (this.curToken == null) {
-            this.curToken = {
-                type: <ITokenType>nextCharType,
-                content: ""
-            };
-        } else if (this.curToken.type !== nextCharType) {
-            ret = this.curToken;
-            this.curToken = {
-                type: <ITokenType>nextCharType,
-                content: nextChar
-            };
-        }
+        do {
+            token.content = token.content + this.nextChar;
+            this.nextChar = await this.reader.getNextChar();
+            nextCharType = Object.entries(this.charTypeMap).find(([k, v]) => v.test(this.nextChar))?.[0];
+        } while (this.nextChar && nextCharType && nextCharType === token.type && nextCharType !== 'group');
 
-        if (!ret) {
-            do {
-                this.curToken.content = this.curToken.content + nextChar;
-                nextChar = await this.reader.getNextChar();
-                nextCharType = Object.entries(this.charTypeMap).find(([k, v]) => v.test(nextChar))?.[0];
-            } while (nextChar && nextCharType && nextCharType === this.curToken.type);
-
-            ret = this.curToken;
-
-            this.curToken = {
-                type: <ITokenType>nextCharType,
-                content: nextChar
-            };
-        }
-
-        if (ret.type == 'ws') {
+        if (token.type === 'ws') {
             return this.getNextToken();
         }
 
-        return ret;
+        return token;
     }
 
     copy(): ITokenizer {
         const tokenizer = new Tokenizer(this.reader.copy());
-        tokenizer.curToken = this.curToken;
+        tokenizer.nextChar = this.nextChar;
         return tokenizer;
     }
 
     assign(tokenizer: ITokenizer): void {
         this.reader.assign((<Tokenizer>tokenizer).reader);
-        this.curToken = (<Tokenizer>tokenizer).curToken;
+        this.nextChar = (<Tokenizer>tokenizer).nextChar;
     }
 
     private reader: IReader;
@@ -84,5 +68,5 @@ export class Tokenizer implements ITokenizer {
         ws: /\s/,
         end: /./
     };
-    private curToken: IToken | null = null;
+    private nextChar: string | null = null;
 }
