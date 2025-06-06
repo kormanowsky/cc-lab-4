@@ -3,3 +3,4 @@ coverage/
 *.svg
 *.dot
 *.png
+*.pr
