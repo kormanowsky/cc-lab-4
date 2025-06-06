@@ -2,18 +2,38 @@ import fs from 'node:fs/promises';
 
 export interface IReader {
     getNextChar(): Promise<string | null>;
+    copy(): IReader;
+    assign(reader: IReader): void;
 }
 
 export class FileReader implements IReader {
-    constructor(fileName: string) {
-        this.fileName = fileName;
-        this.initPromise = this.init();
+    constructor(fileName: string)
+    constructor(initData: [string, number])
+    constructor(fileNameOrInitData: string | [string, number]) {
+        if (typeof fileNameOrInitData === 'string') {
+            this.fileName = fileNameOrInitData;
+            this.initPromise = this.init();
+        } else {
+            this.fileName = '--internal--';
+            this.initPromise = Promise.resolve();
+            this.data = fileNameOrInitData[0];
+            this.pos = fileNameOrInitData[1];
+        }
     }
 
     async getNextChar(): Promise<string | null> {
         await this.initPromise;
         ++this.pos;
         return this.pos < this.data.length ? this.data[this.pos] : null;
+    }
+
+    copy(): IReader {
+        return new FileReader([this.data, this.pos]);
+    }
+
+    assign(reader: IReader): void {
+        this.data = (<FileReader><unknown>reader).data;
+        this.pos = (<FileReader><unknown>reader).pos;
     }
 
     protected async init(): Promise<void> {

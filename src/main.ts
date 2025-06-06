@@ -8,7 +8,7 @@ async function main() {
     const tokenizer = new Tokenizer(reader);
     const parser = new Parser(tokenizer);
     const writer = new ConsoleWriter();
-    const result = await parser.parse();
+    const result = await parser.parse('program');
     writer.writeResult(result);
 }
 

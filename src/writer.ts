@@ -1,4 +1,4 @@
-import { IParseResult } from "./parser";
+import { IParseResult } from "./parser-rules";
 
 export interface IWriter {
     writeResult(result: IParseResult): Promise<void>;

@@ -1,6 +1,6 @@
 import { IReader } from "./reader";
 
-export type ITokenType = 'id' | 'const' | 'group' | 'op' | 'delim' | 'ws';
+export type ITokenType = 'id' | 'const' | 'group' | 'op' | 'delim' | 'ws' | 'end';
 
 export interface IToken {
     type: ITokenType;
@@ -8,7 +8,9 @@ export interface IToken {
 }
 
 export interface ITokenizer {
-    getNextToken(): Promise<IToken | null>;
+    copy(): ITokenizer;
+    assign(tokenizer: ITokenizer): void;
+    getNextToken(): Promise<IToken>;
 }
 
 export class Tokenizer implements ITokenizer {
@@ -16,12 +18,12 @@ export class Tokenizer implements ITokenizer {
         this.reader = reader;
     }
 
-    async getNextToken(): Promise<IToken | null> {
+    async getNextToken(): Promise<IToken> {
         let nextChar = await this.reader.getNextChar();
         let nextCharType = Object.entries(this.charTypeMap).find(([k, v]) => v.test(nextChar))?.[0];
 
         if (!nextChar || !nextCharType) {
-            return null;
+            return {type: 'end', content: null};
         }
 
         let ret: IToken | null = null;
@@ -54,7 +56,22 @@ export class Tokenizer implements ITokenizer {
             };
         }
 
+        if (ret.type == 'ws') {
+            return this.getNextToken();
+        }
+
         return ret;
+    }
+
+    copy(): ITokenizer {
+        const tokenizer = new Tokenizer(this.reader.copy());
+        tokenizer.curToken = this.curToken;
+        return tokenizer;
+    }
+
+    assign(tokenizer: ITokenizer): void {
+        this.reader.assign((<Tokenizer>tokenizer).reader);
+        this.curToken = (<Tokenizer>tokenizer).curToken;
     }
 
     private reader: IReader;
@@ -65,6 +82,7 @@ export class Tokenizer implements ITokenizer {
         op: /[=!<>\+\-\*\/]/,
         delim: /;/,
         ws: /\s/,
+        end: /./
     };
     private curToken: IToken | null = null;
 }
