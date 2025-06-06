@@ -44,12 +44,12 @@ const DEFAULT_PARSER_RULES: IParserRules = {
                 ok: true, 
                 node: {
                     rule: 'program',
+                    children: [
+                        {rule: 'TERMINAL', content: 'begin'}, 
+                        operatorsResult.node,
+                        {rule: 'TERMINAL', content: 'end'}
+                    ]
                 },
-                children: [
-                    {rule: 'TERMINAL', content: '('}, 
-                    operatorsResult.node,
-                    {rule: 'TERMINAL', content: ')'}
-                ]
             };
         }
     },
@@ -196,14 +196,15 @@ const DEFAULT_PARSER_RULES: IParserRules = {
                         rule: 'expr',
                         children: [
                             prExprResult.node
-                        ]
+                        ],
+                        invPolish: prExprResult.node.invPolish,
                     }
                 };
             }
 
             const prExprResult2 = await rules.prExpr.applyRule(tokenizerCopy, rules);
 
-            if (prExprResult.ok) {
+            if (prExprResult2.ok) {
                 tokenizer.assign(tokenizerCopy);
 
                 return {
@@ -214,7 +215,8 @@ const DEFAULT_PARSER_RULES: IParserRules = {
                             prExprResult.node,
                             relOpResult.node,
                             prExprResult2.node
-                        ]
+                        ],
+                        invPolish: `${prExprResult.node.invPolish} ${prExprResult2.node.invPolish} ${relOpResult.node.invPolish}`
                     }
                 };
             }
@@ -244,7 +246,8 @@ const DEFAULT_PARSER_RULES: IParserRules = {
                             children: [
                                 termResult.node,
                                 morePrExprResult.node
-                            ]
+                            ],
+                            invPolish: `${termResult.node.invPolish} ${morePrExprResult.node.invPolish}`
                         }
                     };
                 }
@@ -256,7 +259,8 @@ const DEFAULT_PARSER_RULES: IParserRules = {
                         rule: 'pr_expr',
                         children: [
                             termResult.node
-                        ]
+                        ],
+                        invPolish: termResult.node.invPolish
                     }
                 };
             }
@@ -283,7 +287,8 @@ const DEFAULT_PARSER_RULES: IParserRules = {
                                     signResult.node,
                                     termResult.node,
                                     morePrExprResult.node
-                                ]
+                                ],
+                                invPolish: `${termResult.node.invPolish} ${signResult.node.invPolish} ${morePrExprResult.node.invPolish}`
                             }
                         };
                     }
@@ -297,7 +302,8 @@ const DEFAULT_PARSER_RULES: IParserRules = {
                             children: [
                                 signResult.node,
                                 termResult.node
-                            ]
+                            ],
+                            invPolish: `${termResult.node.invPolish} ${signResult.node.invPolish}`
                         }
                     };
                 }
@@ -335,7 +341,8 @@ const DEFAULT_PARSER_RULES: IParserRules = {
                             addOpResult.node,
                             termResult.node,
                             morePrExprResult.node
-                        ]
+                        ],
+                        invPolish: `${termResult.node.invPolish} ${morePrExprResult.node.invPolish} ${addOpResult.node.invPolish}`
                     }
                 };
             }
@@ -347,7 +354,8 @@ const DEFAULT_PARSER_RULES: IParserRules = {
                     children: [
                         addOpResult.node,
                         termResult.node
-                    ]
+                    ],
+                    invPolish: `${termResult.node.invPolish} ${addOpResult.node.invPolish}`
                 }
             };
         }
@@ -374,7 +382,8 @@ const DEFAULT_PARSER_RULES: IParserRules = {
                         children: [
                             factorResult.node,
                             moreTermResult.node
-                        ]
+                        ],
+                        invPolish: `${factorResult.node.invPolish} ${moreTermResult.node.invPolish}`
                     }
                 };
             }
@@ -385,7 +394,8 @@ const DEFAULT_PARSER_RULES: IParserRules = {
                     rule: 'term',
                     children: [
                         factorResult.node
-                    ]
+                    ],
+                    invPolish: factorResult.node.invPolish
                 }
             };
         },
@@ -419,7 +429,8 @@ const DEFAULT_PARSER_RULES: IParserRules = {
                             mulOpResult.node,
                             factorResult.node,
                             moreTermResult.node
-                        ]
+                        ],
+                        invPolish: `${factorResult.node.invPolish} ${moreTermResult.node.invPolish} ${mulOpResult.node.invPolish}`
                     }
                 };
             }
@@ -431,7 +442,8 @@ const DEFAULT_PARSER_RULES: IParserRules = {
                     children: [
                         mulOpResult.node,
                         factorResult.node
-                    ]
+                    ],
+                    invPolish: `${factorResult.node.invPolish} ${mulOpResult.node.invPolish}`
                 }
             };
         }
@@ -451,13 +463,13 @@ const DEFAULT_PARSER_RULES: IParserRules = {
                         rule: 'factor',
                         children: [
                             idResult.node
-                        ]
+                        ],
+                        invPolish: idResult.node.invPolish
                     }
                 };
             }
 
             tokenizerCopy = tokenizer.copy();
-
             const constResult = await rules.const.applyRule(tokenizerCopy, rules);
 
             if (constResult.ok) {
@@ -468,7 +480,8 @@ const DEFAULT_PARSER_RULES: IParserRules = {
                         rule: 'factor',
                         children: [
                             constResult.node
-                        ]
+                        ],
+                        invPolish: constResult.node.invPolish
                     }
                 };
             }
@@ -493,7 +506,8 @@ const DEFAULT_PARSER_RULES: IParserRules = {
                             children: [
                                 {rule: 'TERMINAL', content: 'not'},
                                 factorResult.node
-                            ]
+                            ],
+                            invPolish: `${factorResult.node.invPolish} not`
                         }
                     };
                 }
@@ -522,7 +536,8 @@ const DEFAULT_PARSER_RULES: IParserRules = {
                         {rule: 'TERMINAL', content: '('},
                         prExprResult.node,
                         {rule: 'TERMINAL', content: ')'},
-                    ]
+                    ],
+                    invPolish: prExprResult.node.invPolish
                 }
             };
         },
@@ -539,8 +554,9 @@ const DEFAULT_PARSER_RULES: IParserRules = {
                     node: {
                         rule: 'rel_op',
                         children: [
-                            {rule: 'TERMINAL', content: nextToken.content}
-                        ]
+                            {rule: 'TERMINAL', content: nextToken.content, invPolish: nextToken.content}
+                        ],
+                        invPolish: nextToken.content
                     }
                 };
             }
@@ -563,8 +579,9 @@ const DEFAULT_PARSER_RULES: IParserRules = {
                     node: {
                         rule: 'sign',
                         children: [
-                            {rule: 'TERMINAL', content: nextToken.content}
-                        ]
+                            {rule: 'TERMINAL', content: nextToken.content, invPolish: nextToken.content}
+                        ],
+                        invPolish: nextToken.content
                     }
                 };
             }
@@ -587,8 +604,9 @@ const DEFAULT_PARSER_RULES: IParserRules = {
                     node: {
                         rule: 'add_op',
                         children: [
-                            {rule: 'TERMINAL', content: nextToken.content}
-                        ]
+                            {rule: 'TERMINAL', content: nextToken.content, invPolish: nextToken.content}
+                        ],
+                        invPolish: nextToken.content
                     }
                 };
             }
@@ -611,8 +629,9 @@ const DEFAULT_PARSER_RULES: IParserRules = {
                     node: {
                         rule: 'mul_op',
                         children: [
-                            {rule: 'TERMINAL', content: nextToken.content}
-                        ]
+                            {rule: 'TERMINAL', content: nextToken.content, invPolish: nextToken.content}
+                        ],
+                        invPolish: nextToken.content
                     }
                 };
             }
@@ -634,8 +653,9 @@ const DEFAULT_PARSER_RULES: IParserRules = {
                     node: {
                         rule: 'id',
                         children: [
-                            {rule: 'TERMINAL', content: nextToken.content}
-                        ]
+                            {rule: 'TERMINAL', content: nextToken.content, invPolish: nextToken.content}
+                        ],
+                        invPolish: nextToken.content
                     }
                 };
             }
@@ -654,8 +674,9 @@ const DEFAULT_PARSER_RULES: IParserRules = {
                     node: {
                         rule: 'const',
                         children: [
-                            {rule: 'TERMINAL', content: nextToken.content}
-                        ]
+                            {rule: 'TERMINAL', content: nextToken.content, invPolish: nextToken.content}
+                        ],
+                        invPolish: nextToken.content
                     }
                 };
             }
@@ -666,8 +687,9 @@ const DEFAULT_PARSER_RULES: IParserRules = {
                     node: {
                         rule: 'const',
                         children: [
-                            {rule: 'TERMINAL', content: nextToken.content}
-                        ]
+                            {rule: 'TERMINAL', content: nextToken.content, invPolish: nextToken.content}
+                        ],
+                        invPolish: nextToken.content
                     }
                 };
             }

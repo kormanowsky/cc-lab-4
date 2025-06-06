@@ -1,0 +1,4 @@
+begin 
+X = 1;
+Y = X + (X >= 1)
+end

@@ -36,7 +36,10 @@ export class FileReader implements IReader {
         this.pos = (<FileReader><unknown>reader).pos;
     }
 
-    protected async init(): Promise<void> {
+    async init(): Promise<void> {
+        if (this.data) {
+            return;
+        }
         const file = await fs.open(this.fileName);
         this.data = await file.readFile('utf-8');
         await file.close();
