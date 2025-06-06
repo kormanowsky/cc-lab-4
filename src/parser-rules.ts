@@ -166,7 +166,7 @@ const DEFAULT_PARSER_RULES: IParserRules = {
             return {
                 ok: true,
                 node: {
-                    rule: 'expr',
+                    rule: 'operator',
                     children: [
                         idResult.node,
                         {rule: 'TERMINAL', content: '='},
