@@ -1,8 +1,16 @@
 import { ITokenizer } from "./tokenizer";
 
+export interface IParseNode {
+    rule: string;
+    content?: string;
+    invPolish?: string;
+    children?: IParseNode[];
+}
+
 export interface IParseResult {
     ok: boolean;
     error?: string;
+    node?: IParseNode;
 }
 
 export interface IParserRule {
@@ -32,7 +40,17 @@ const DEFAULT_PARSER_RULES: IParserRules = {
                 return {ok: false, error: `program: expected \`end\`, found \`${lastToken.content}\``};
             }
 
-            return {ok: true};
+            return {
+                ok: true, 
+                node: {
+                    rule: 'program',
+                },
+                children: [
+                    {rule: 'TERMINAL', content: '('}, 
+                    operatorsResult.node,
+                    {rule: 'TERMINAL', content: ')'}
+                ]
+            };
         }
     },
     operators: {
@@ -48,13 +66,33 @@ const DEFAULT_PARSER_RULES: IParserRules = {
             const nextToken = await tokenizerCopy.getNextToken();
 
             if (nextToken.content !== ';') {
-                return operatorResult;
+                return {
+                    ok: true,
+                    node: {
+                        rule: 'operators',
+                        children: [
+                            operatorResult.node
+                        ]
+                    },
+                };
             }
 
             const moreOperatorsResult = await rules.moreOperators.applyRule(tokenizerCopy, rules);
 
             if (moreOperatorsResult.ok) {
                 tokenizer.assign(tokenizerCopy);
+
+                return {
+                    ok: true,
+                    node: {
+                        rule: 'operators',
+                        children: [
+                            operatorResult.node,
+                            {rule: 'TERMINAL', content: ';'},
+                            moreOperatorsResult.node
+                        ]
+                    }
+                };
             }
 
             return moreOperatorsResult;
@@ -73,13 +111,33 @@ const DEFAULT_PARSER_RULES: IParserRules = {
             const nextToken = await tokenizerCopy.getNextToken();
 
             if (nextToken.content !== ';') {
-                return operatorResult;
+                return {
+                    ok: true,
+                    node: {
+                        rule: 'more_operators',
+                        children: [
+                            operatorResult.node
+                        ]
+                    }
+                };
             }
 
             const moreOperatorsResult = await rules.moreOperators.applyRule(tokenizerCopy, rules);
 
             if (moreOperatorsResult.ok) {
                 tokenizer.assign(tokenizerCopy);
+
+                return {
+                    ok: true,
+                    node: {
+                        rule: 'more_operators',
+                        children: [
+                            operatorResult.node,
+                            {rule: 'TERMINAL', content: ';'},
+                            moreOperatorsResult.node
+                        ]
+                    },
+                };
             }
 
             return moreOperatorsResult;
@@ -99,13 +157,29 @@ const DEFAULT_PARSER_RULES: IParserRules = {
                 return {ok: false, error: `operator: expected \`=\`, found \`${nextToken.content}\``};
             }
 
-            return rules.expr.applyRule(tokenizer, rules);
+            const exprResult = await rules.expr.applyRule(tokenizer, rules);
+
+            if (!exprResult.ok) {
+                return exprResult;
+            }
+
+            return {
+                ok: true,
+                node: {
+                    rule: 'expr',
+                    children: [
+                        idResult.node,
+                        {rule: 'TERMINAL', content: '='},
+                        exprResult.node
+                    ]
+                },
+            };
         },
     },
 
     expr: {
         async applyRule(tokenizer, rules) {
-            let prExprResult = await rules.prExpr.applyRule(tokenizer, rules);
+            const prExprResult = await rules.prExpr.applyRule(tokenizer, rules);
 
             if (!prExprResult.ok) {
                 return prExprResult;
@@ -116,16 +190,36 @@ const DEFAULT_PARSER_RULES: IParserRules = {
             const relOpResult = await rules.relOp.applyRule(tokenizerCopy, rules);
 
             if (!relOpResult.ok) {
-                return prExprResult;
+                return {
+                    ok: true,
+                    node: {
+                        rule: 'expr',
+                        children: [
+                            prExprResult.node
+                        ]
+                    }
+                };
             }
 
-            prExprResult = await rules.prExpr.applyRule(tokenizerCopy, rules);
+            const prExprResult2 = await rules.prExpr.applyRule(tokenizerCopy, rules);
 
             if (prExprResult.ok) {
                 tokenizer.assign(tokenizerCopy);
+
+                return {
+                    ok: true,
+                    node: {
+                        rule: 'expr',
+                        children: [
+                            prExprResult.node,
+                            relOpResult.node,
+                            prExprResult2.node
+                        ]
+                    }
+                };
             }
 
-            return prExprResult;
+            return prExprResult2;
         }
     },
 
@@ -142,11 +236,29 @@ const DEFAULT_PARSER_RULES: IParserRules = {
 
                 if (morePrExprResult.ok) {
                     tokenizer.assign(tokenizerCopy2);
-                    return morePrExprResult;
+
+                    return {
+                        ok: true,
+                        node: {
+                            rule: 'pr_expr',
+                            children: [
+                                termResult.node,
+                                morePrExprResult.node
+                            ]
+                        }
+                    };
                 }
 
                 tokenizer.assign(tokenizerCopy);
-                return termResult;
+                return {
+                    ok: true,
+                    node: {
+                        rule: 'pr_expr',
+                        children: [
+                            termResult.node
+                        ]
+                    }
+                };
             }
 
             tokenizerCopy = tokenizer.copy();
@@ -163,11 +275,32 @@ const DEFAULT_PARSER_RULES: IParserRules = {
 
                     if (morePrExprResult.ok) {
                         tokenizer.assign(tokenizerCopy2);
-                        return morePrExprResult;
+                        return {
+                            ok: true,
+                            node: {
+                                rule: 'pr_expr',
+                                children: [
+                                    signResult.node,
+                                    termResult.node,
+                                    morePrExprResult.node
+                                ]
+                            }
+                        };
                     }
-                }
 
-                tokenizer.assign(tokenizerCopy);
+                    tokenizer.assign(tokenizerCopy2);
+
+                    return {
+                        ok: true,
+                        node: {
+                            rule: 'pr_expr',
+                            children: [
+                                signResult.node,
+                                termResult.node
+                            ]
+                        }
+                    };
+                }
             }
 
             return signResult;
@@ -194,10 +327,29 @@ const DEFAULT_PARSER_RULES: IParserRules = {
 
             if (morePrExprResult.ok) {
                 tokenizer.assign(tokenizerCopy);
-                return morePrExprResult;
+                return {
+                    ok: true,
+                    node: {
+                        rule: 'more_pr_expr',
+                        children: [
+                            addOpResult.node,
+                            termResult.node,
+                            morePrExprResult.node
+                        ]
+                    }
+                };
             }
 
-            return termResult;
+            return {
+                ok: true,
+                node: {
+                    rule: 'more_pr_expr',
+                    children: [
+                        addOpResult.node,
+                        termResult.node
+                    ]
+                }
+            };
         }
     },
 
@@ -215,10 +367,27 @@ const DEFAULT_PARSER_RULES: IParserRules = {
 
             if (moreTermResult.ok) {
                 tokenizer.assign(tokenizerCopy);
-                return moreTermResult;
+                return {
+                    ok: true,
+                    node: {
+                        rule: 'term',
+                        children: [
+                            factorResult.node,
+                            moreTermResult.node
+                        ]
+                    }
+                };
             }
 
-            return factorResult;
+            return {
+                ok: true,
+                node: {
+                    rule: 'term',
+                    children: [
+                        factorResult.node
+                    ]
+                }
+            };
         },
     },
 
@@ -242,10 +411,29 @@ const DEFAULT_PARSER_RULES: IParserRules = {
 
             if (moreTermResult.ok) {
                 tokenizer.assign(tokenizerCopy);
-                return moreTermResult;
+                return {
+                    ok: true,
+                    node: {
+                        rule: 'more_term',
+                        children: [
+                            mulOpResult.node,
+                            factorResult.node,
+                            moreTermResult.node
+                        ]
+                    }
+                };
             }
 
-            return factorResult;
+            return {
+                ok: true,
+                node: {
+                    rule: 'more_term',
+                    children: [
+                        mulOpResult.node,
+                        factorResult.node
+                    ]
+                }
+            };
         }
     },
 
@@ -257,7 +445,15 @@ const DEFAULT_PARSER_RULES: IParserRules = {
 
             if (idResult.ok) {
                 tokenizer.assign(tokenizerCopy);
-                return idResult;
+                return {
+                    ok: true,
+                    node: {
+                        rule: 'factor',
+                        children: [
+                            idResult.node
+                        ]
+                    }
+                };
             }
 
             tokenizerCopy = tokenizer.copy();
@@ -266,7 +462,15 @@ const DEFAULT_PARSER_RULES: IParserRules = {
 
             if (constResult.ok) {
                 tokenizer.assign(tokenizerCopy);
-                return constResult;
+                return {
+                    ok: true,
+                    node: {
+                        rule: 'factor',
+                        children: [
+                            constResult.node
+                        ]
+                    }
+                };
             }
 
             tokenizerCopy = tokenizer.copy();
@@ -282,6 +486,16 @@ const DEFAULT_PARSER_RULES: IParserRules = {
 
                 if (factorResult.ok) {
                     tokenizer.assign(tokenizerCopy);
+                    return {
+                        ok: true,
+                        node: {
+                            rule: 'factor',
+                            children: [
+                                {rule: 'TERMINAL', content: 'not'},
+                                factorResult.node
+                            ]
+                        }
+                    };
                 }
 
                 return factorResult;
@@ -300,7 +514,17 @@ const DEFAULT_PARSER_RULES: IParserRules = {
             }
 
             tokenizer.assign(tokenizerCopy);
-            return {ok: true};
+            return {
+                ok: true,
+                node: {
+                    rule: 'factor',
+                    children: [
+                        {rule: 'TERMINAL', content: '('},
+                        prExprResult.node,
+                        {rule: 'TERMINAL', content: ')'},
+                    ]
+                }
+            };
         },
     },
 
@@ -310,7 +534,15 @@ const DEFAULT_PARSER_RULES: IParserRules = {
             const expected = ['==', '!=', '<', '>', '>=', '<='];
 
             if (expected.includes(nextToken.content)) {
-                return {ok: true};
+                return {
+                    ok: true,
+                    node: {
+                        rule: 'rel_op',
+                        children: [
+                            {rule: 'TERMINAL', content: nextToken.content}
+                        ]
+                    }
+                };
             }
 
             return {
@@ -326,7 +558,15 @@ const DEFAULT_PARSER_RULES: IParserRules = {
             const expected = ['+', '-'];
 
             if (expected.includes(nextToken.content)) {
-                return {ok: true};
+                return {
+                    ok: true,
+                    node: {
+                        rule: 'sign',
+                        children: [
+                            {rule: 'TERMINAL', content: nextToken.content}
+                        ]
+                    }
+                };
             }
 
             return {
@@ -342,7 +582,15 @@ const DEFAULT_PARSER_RULES: IParserRules = {
             const expected = ['+', '-', 'or'];
 
             if (expected.includes(nextToken.content)) {
-                return {ok: true};
+                return {
+                    ok: true,
+                    node: {
+                        rule: 'add_op',
+                        children: [
+                            {rule: 'TERMINAL', content: nextToken.content}
+                        ]
+                    }
+                };
             }
 
             return {
@@ -358,7 +606,15 @@ const DEFAULT_PARSER_RULES: IParserRules = {
             const expected = ['*', '/', 'div', 'mod', 'and'];
 
             if (expected.includes(nextToken.content)) {
-                return {ok: true};
+                return {
+                    ok: true,
+                    node: {
+                        rule: 'mul_op',
+                        children: [
+                            {rule: 'TERMINAL', content: nextToken.content}
+                        ]
+                    }
+                };
             }
 
             return {
@@ -373,7 +629,15 @@ const DEFAULT_PARSER_RULES: IParserRules = {
             const nextToken = await tokenizer.getNextToken();
 
             if (/[A-Z]+/.test(nextToken.content)) {
-                return {ok: true};
+                return {
+                    ok: true,
+                    node: {
+                        rule: 'id',
+                        children: [
+                            {rule: 'TERMINAL', content: nextToken.content}
+                        ]
+                    }
+                };
             }
 
             return {ok: false, error: `id: invalid identifier: \`${nextToken.content}\`, must match ${/[A-Z]+/}`}
@@ -385,11 +649,27 @@ const DEFAULT_PARSER_RULES: IParserRules = {
             const nextToken = await tokenizer.getNextToken();
 
             if (/[0-9]+/.test(nextToken.content)) {
-                return {ok: true};
+                return {
+                    ok: true,
+                    node: {
+                        rule: 'const',
+                        children: [
+                            {rule: 'TERMINAL', content: nextToken.content}
+                        ]
+                    }
+                };
             }
 
             if (['true', 'false'].includes(nextToken.content)) {
-                return {ok: true};
+                return {
+                    ok: true,
+                    node: {
+                        rule: 'const',
+                        children: [
+                            {rule: 'TERMINAL', content: nextToken.content}
+                        ]
+                    }
+                };
             }
 
             return {ok: false, error: `const: must be \`true\`, \`false\` or an integer constant`};
