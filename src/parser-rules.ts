@@ -61,21 +61,13 @@ const DEFAULT_PARSER_RULES: IParserRules = {
                 return operatorResult;
             }
 
-            const tokenizerCopy = tokenizer.copy();
-
-            const nextToken = await tokenizerCopy.getNextToken();
+            const nextToken = await tokenizer.getNextToken();
 
             if (nextToken.content !== ';') {
-                return {
-                    ok: true,
-                    node: {
-                        rule: 'operators',
-                        children: [
-                            operatorResult.node
-                        ]
-                    },
-                };
+                return {ok: false, error: `operators: expected \`;\`, found \`${nextToken.content}\``};
             }
+
+            const tokenizerCopy = tokenizer.copy();
 
             const moreOperatorsResult = await rules.moreOperators.applyRule(tokenizerCopy, rules);
 
@@ -95,7 +87,16 @@ const DEFAULT_PARSER_RULES: IParserRules = {
                 };
             }
 
-            return moreOperatorsResult;
+            return {
+                ok: true,
+                node: {
+                    rule: 'operators',
+                    children: [
+                        operatorResult.node,
+                        {rule: 'TERMINAL', content: ';'}
+                    ]
+                }
+            };
         },
     },
     moreOperators: {
@@ -106,21 +107,13 @@ const DEFAULT_PARSER_RULES: IParserRules = {
                 return operatorResult;
             }
 
-            const tokenizerCopy = tokenizer.copy();
-
-            const nextToken = await tokenizerCopy.getNextToken();
+            const nextToken = await tokenizer.getNextToken();
 
             if (nextToken.content !== ';') {
-                return {
-                    ok: true,
-                    node: {
-                        rule: 'more_operators',
-                        children: [
-                            operatorResult.node
-                        ]
-                    }
-                };
+                return {ok: false, error: `more_operators: expected \`;\`, found \`${nextToken.content}\``};
             }
+
+            const tokenizerCopy = tokenizer.copy();
 
             const moreOperatorsResult = await rules.moreOperators.applyRule(tokenizerCopy, rules);
 
@@ -140,7 +133,16 @@ const DEFAULT_PARSER_RULES: IParserRules = {
                 };
             }
 
-            return moreOperatorsResult;
+            return {
+                ok: true,
+                node: {
+                    rule: 'more_operators',
+                    children: [
+                        operatorResult.node,
+                        {rule: 'TERMINAL', content: ';'}
+                    ]
+                }
+            };
         },
     },
     operator: {
